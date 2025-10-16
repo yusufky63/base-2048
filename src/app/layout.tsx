@@ -24,9 +24,7 @@ const frame = {
     action: {
       type: "launch_frame",
       name: "Base 2048",
-      url: "https://base-2048.vercel.app/",
-      splashImageUrl: "https://base-2048.vercel.app/splash.png", // 200x200px
-      splashBackgroundColor: "#fff"
+      url: "https://base-2048.vercel.app/"
     }
   }
 }
