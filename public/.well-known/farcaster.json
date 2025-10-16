@@ -15,7 +15,7 @@
     "splashImageUrl": "https://base-2048.vercel.app/splash.png",
     "splashBackgroundColor": "#ffffff",
     "subtitle": "Classic 2048 game",
-    "description": "Play the classic 2048 puzzle game on Base.",
+    "description": "Play the classic 2048 puzzle game on Base",
     "screenshotUrls": ["https://base-2048.vercel.app/og-image.png"],
     "primaryCategory": "games",
     "tags": ["games", "puzzle", "2048", "base"],

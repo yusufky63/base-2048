@@ -20,7 +20,7 @@ const frame = {
   version: "1",
   imageUrl: "https://base-2048.vercel.app/og-image.png", // 3:2 aspect ratio image
   button: {
-    title: "🎮 Play Base 2048",
+    title: "Play Base 2048",
     action: {
       type: "launch_frame",
       name: "Base 2048",
@@ -31,7 +31,7 @@ const frame = {
 
 export const metadata: Metadata = {
   title: "Base 2048",
-  description: "Play the classic 2048 puzzle game on Base.",
+  description: "Play the classic 2048 puzzle game on Base",
   openGraph: {
     title: "Base 2048",
     description: "Classic 2048 game on Base",
