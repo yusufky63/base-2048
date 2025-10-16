@@ -1,0 +1,29 @@
+{
+  "accountAssociation": {
+    "header": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9",
+    "payload": "eyJkb21haW4iOiJsb2NhbGhvc3Q6MzAwMCJ9",
+    "signature": "placeholder-signature"
+  },
+  "baseBuilder": {
+    "allowedAddresses": ["0xc0F52851fCAac0cac016432E5e11954632cd2fcB"]
+  },
+  "miniapp": {
+    "version": "1",
+    "name": "Base 2048",
+    "homeUrl": "https://base-2048.vercel.app/",
+    "iconUrl": "/icon.png",
+    "splashImageUrl": "/splash.png",
+    "splashBackgroundColor": "#fff",
+    "subtitle": "Classic 2048 game",
+    "description": "Play the classic 2048 puzzle game on Base.",
+    "screenshotUrls": ["https://base-2048.vercel.app/og-image.png"],
+    "primaryCategory": "games",
+    "tags": ["games", "puzzle", "2048", "base"],
+    "heroImageUrl": "https://base-2048.vercel.app/og-image.png",
+    "tagline": "Play",
+    "ogTitle": "Base 2048",
+    "ogDescription": "Classic 2048 game on Base",
+    "ogImageUrl": "https://base-2048.vercel.app/og-image.png",
+    "noindex": true
+  }
+}
