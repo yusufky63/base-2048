@@ -15,14 +15,14 @@
     "splashImageUrl": "https://base-2048.vercel.app/splash.png",
     "splashBackgroundColor": "#ffffff",
     "subtitle": "Classic puzzle game",
-    "description": "Slide tiles to reach 2048. Classic puzzle game with scoring on Base.",
+    "description": "Slide tiles to reach 2048 Classic puzzle game with scoring on Base",
     "screenshotUrls": ["https://base-2048.vercel.app/og-image.png"],
     "primaryCategory": "games",
     "tags": ["games", "puzzle", "2048", "base"],
     "heroImageUrl": "https://base-2048.vercel.app/og-image.png",
     "tagline": "Play Now",
     "ogTitle": "Base 2048",
-    "ogDescription": "Slide tiles to reach 2048. Classic puzzle game with scoring on Base.",
+    "ogDescription": "Slide tiles to reach 2048 Classic puzzle game with scoring on Base",
     "ogImageUrl": "https://base-2048.vercel.app/og-image.png",
     "noindex": false
   }
