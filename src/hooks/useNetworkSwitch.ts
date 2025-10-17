@@ -4,11 +4,16 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { watchAccount, watchChainId } from '@wagmi/core'
 import { config } from '@/lib/wagmi'
 
+// Simplified hook - Farcaster mini apps always run on Base network
+
 export function useNetworkSwitch() {
   const { isConnected, connector, chainId: accountChainId } = useAccount()
   const { switchChainAsync, isPending: isSwitching } = useSwitchChain()
   const [chainId, setChainId] = useState<number | undefined>(accountChainId ?? undefined)
   const lastAutoSwitchAttemptRef = useRef<number | undefined>(undefined)
+
+  // Check if we're using the Farcaster mini app connector
+  const isFarcasterConnector = connector?.id === 'farcaster'
 
   const readActiveChainId = useCallback(async () => {
     if (connector?.getChainId) {
@@ -49,6 +54,13 @@ export function useNetworkSwitch() {
   const ensureBaseNetwork = useCallback(async () => {
     if (!isConnected) {
       throw new Error('Wallet is not connected')
+    }
+
+    // Handle Farcaster mini app environment FIRST
+    // Farcaster mini apps always work with Base network
+    if (isFarcasterConnector) {
+      console.log('[useNetworkSwitch] Farcaster environment - Base network is always available, ready for transactions')
+      return base.id
     }
 
     const activeChainId = await readActiveChainId()
@@ -92,7 +104,7 @@ export function useNetworkSwitch() {
       console.error('[useNetworkSwitch] Failed to switch to Base network:', error)
       throw new Error('Failed to switch to Base network. Please switch manually and try again.')
     }
-  }, [isConnected, readActiveChainId, switchChainAsync])
+  }, [isConnected, readActiveChainId, switchChainAsync, isFarcasterConnector])
 
   useEffect(() => {
     // Prime state on mount
@@ -151,15 +163,24 @@ export function useNetworkSwitch() {
 
     lastAutoSwitchAttemptRef.current = chainId
 
+    // For Farcaster connector, no need to switch - Base is always available
+    if (isFarcasterConnector) {
+      console.log('[useNetworkSwitch] Farcaster connector detected - Base network always available, no switch needed')
+      return
+    }
+
     ensureBaseNetwork().catch((error) => {
       console.warn('[useNetworkSwitch] Automatic Base switch attempt failed:', error)
     })
-  }, [chainId, ensureBaseNetwork, isConnected])
+  }, [chainId, ensureBaseNetwork, isConnected, isFarcasterConnector])
 
   return {
     ensureBaseNetwork,
-    isOnBaseNetwork: chainId === base.id,
+    // For Farcaster connector, always show as Base network to provide better UX
+    isOnBaseNetwork: isFarcasterConnector ? true : chainId === base.id,
     isSwitching,
-    chainId,
+    // For Farcaster connector, show Base chain ID to keep UI consistent
+    chainId: isFarcasterConnector ? base.id : chainId,
+    isFarcasterConnector,
   }
 }
