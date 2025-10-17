@@ -24,6 +24,6 @@
     "ogTitle": "Base 2048",
     "ogDescription": "Classic 2048 game on Base",
     "ogImageUrl": "https://base-2048.vercel.app/og-image.png",
-    "noindex": true
+    "noindex": false
   }
 }
