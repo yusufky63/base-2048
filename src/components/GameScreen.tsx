@@ -1343,11 +1343,6 @@ const ConnectWalletButton = ({
   if (isConnected) {
     return (
       <div className="flex items-center gap-2">
-        {!isOnBaseNetwork && !isSwitching && (
-          <span className="text-xs text-orange-600 font-medium">
-            Switch to Base
-          </span>
-        )}
         {isSwitching && (
           <span className="text-xs text-blue-600 font-medium">
             Switching...
