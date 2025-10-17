@@ -16,15 +16,17 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
 })
 
-const frame = {
+const miniapp = {
   version: "1",
   imageUrl: "https://base-2048.vercel.app/og-image.png", // 3:2 aspect ratio image
   button: {
-    title: "Play Base 2048",
+    title: "🎮 Play Base 2048",
     action: {
-      type: "launch_frame",
+      type: "launch_miniapp",
       name: "Base 2048",
-      url: "https://base-2048.vercel.app/"
+      url: "https://base-2048.vercel.app/",
+      splashImageUrl: "https://base-2048.vercel.app/splash.png",
+      splashBackgroundColor: "#ffffff"
     }
   }
 }
@@ -38,7 +40,8 @@ export const metadata: Metadata = {
     images: ["https://base-2048.vercel.app/og-image.png"],
   },
   other: {
-    "fc:miniapp": JSON.stringify(frame)
+    "fc:miniapp": JSON.stringify(miniapp),
+    "fc:frame": JSON.stringify(miniapp) // For backward compatibility
   }
 }
 

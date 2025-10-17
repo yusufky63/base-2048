@@ -8,6 +8,7 @@ import { getScoreSignature } from "@/lib/apiClient";
 import { useContract } from "@/hooks/useContract";
 import { HoldButton } from "./HoldButton";
 import { sdk } from "@farcaster/miniapp-sdk";
+import { useComposeCast } from "@coinbase/onchainkit/minikit";
 import { useAccount, useConnect, useDisconnect, type Connector } from "wagmi";
 import appsData from "@/data/apps.json";
 import toast from "react-hot-toast";
@@ -136,13 +137,13 @@ export const GameScreen = () => {
         // This hides the Farcaster splash screen
         await sdk.actions.ready();
         console.log("Farcaster splash screen hidden - app ready");
-        
+
         // Prompt user to add the mini app to Farcaster
         try {
           await sdk.actions.addMiniApp();
           console.log("Mini app added to Farcaster successfully");
         } catch (addError) {
-          if (addError instanceof Error && addError.name === 'RejectedByUser') {
+          if (addError instanceof Error && addError.name === "RejectedByUser") {
             console.log("User rejected adding mini app to Farcaster");
           } else {
             console.log("Could not add mini app to Farcaster:", addError);
@@ -581,53 +582,22 @@ export const GameScreen = () => {
     // Don't reset playerBestScore - keep contract data
   }, [startNewGame]);
 
+  const { composeCast } = useComposeCast();
+
+
   const shareCurrentRun = useCallback(async () => {
     const shareText = `🎮 I just scored ${game.score.toLocaleString()} points on Base 2048! Can you beat my score?`;
     const origin =
       typeof window !== "undefined"
         ? window.location.origin
         : "https://base-2048.vercel.app/";
-    const shareUrl = `${origin}`;
 
-    try {
-      // Try to use Farcaster SDK first - using openUrl to open compose
-      const composeUrl = `https://farcaster.xyz/~/compose?text=${encodeURIComponent(
-        shareText
-      )}&embeds[]=${encodeURIComponent(shareUrl)}`;
-      await sdk.actions.openUrl(composeUrl);
-    } catch (error) {
-      console.log(
-        "Farcaster SDK share failed, falling back to web share:",
-        error
-      );
-
-      // Fallback to web share or external link
-      const composed = `${shareText} ${shareUrl}`;
-      if (typeof navigator !== "undefined" && navigator.share) {
-        navigator.share({ text: shareText, url: shareUrl }).catch(() => {
-          if (typeof window !== "undefined") {
-            window.open(
-              `https://farcaster.xyz/~/compose?text=${encodeURIComponent(
-                composed
-              )}`,
-              "_blank",
-              "noopener,noreferrer"
-            );
-          }
-        });
-      } else if (typeof window !== "undefined") {
-        window.open(
-          `https://farcaster.xyz/~/compose?text=${encodeURIComponent(
-            composed
-          )}`,
-          "_blank",
-          "noopener,noreferrer"
-        );
-      } else {
-        console.info("Share to Farcaster:", composed);
-      }
-    }
-  }, [game.score]);
+    // Use MiniKit's composeCast for proper sharing
+    composeCast({
+      text: shareText,
+      embeds: [origin],
+    });
+  }, [game.score, composeCast]);
 
   // Let Farcaster handle the splash screen - no custom loading screen needed
 
@@ -868,12 +838,12 @@ export const GameScreen = () => {
                             <span className="text-xs">
                               {truncateName(
                                 entry.farcasterProfile?.displayName ||
-                                entry.farcasterProfile?.username ||
-                                entry.displayName ||
-                                entry.username ||
-                                entry.address.slice(0, 4) +
-                                  "..." +
-                                  entry.address.slice(-4)
+                                  entry.farcasterProfile?.username ||
+                                  entry.displayName ||
+                                  entry.username ||
+                                  entry.address.slice(0, 4) +
+                                    "..." +
+                                    entry.address.slice(-4)
                               )}
                             </span>
                           </div>
@@ -1052,7 +1022,7 @@ export const GameScreen = () => {
               className="w-full rounded-full border border-[#C5D5FF] px-4 py-2 text-sm font-semibold text-[#0A84FF] transition hover:border-[#0A84FF] hover:text-[#0A84FF]"
               onClick={shareCurrentRun}
             >
-              Share on Farcaster
+              Share Score
             </button>
             <button
               type="button"
@@ -1150,10 +1120,10 @@ export const GameScreen = () => {
                         <span className="font-medium">
                           {truncateName(
                             entry.farcasterProfile?.displayName ||
-                            entry.farcasterProfile?.username ||
-                            entry.displayName ||
-                            entry.username ||
-                            entry.address.slice(0, 10)
+                              entry.farcasterProfile?.username ||
+                              entry.displayName ||
+                              entry.username ||
+                              entry.address.slice(0, 10)
                           )}
                         </span>
                       </div>
@@ -1209,8 +1179,12 @@ export const GameScreen = () => {
                     <span className="text-lg hidden">🎮</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-[#1C2333] text-sm sm:text-base truncate">{app.name}</h3>
-                    <p className="text-xs text-[#4C5A77] line-clamp-2">{app.description}</p>
+                    <h3 className="font-semibold text-[#1C2333] text-sm sm:text-base truncate">
+                      {app.name}
+                    </h3>
+                    <p className="text-xs text-[#4C5A77] line-clamp-2">
+                      {app.description}
+                    </p>
                   </div>
                   <div className="flex items-center justify-center flex-shrink-0">
                     <svg
