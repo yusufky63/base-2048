@@ -46,7 +46,7 @@ const CONTRACT_ABI = [
 const CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '0xc9184bEEeA6EB0990DdbDDf6d8Ac6424397CfE72') as `0x${string}`;
 
 export function useContract() {
-  const { writeContract, isPending, error, data } = useWriteContract();
+  const { writeContractAsync, isPending, error } = useWriteContract();
   const [retryCount, setRetryCount] = useState(0);
 
   const submitScoreWithSignature = async (
@@ -86,7 +86,7 @@ export function useContract() {
         setRetryCount(attempt);
         
         // Submit transaction and wait for confirmation
-        const hash = await writeContract({
+        const hash = await writeContractAsync({
           address: CONTRACT_ADDRESS as `0x${string}`,
           abi: CONTRACT_ABI,
           functionName: 'submitScoreWithSig',
@@ -103,9 +103,9 @@ export function useContract() {
           value: parseEther(feeAmount)
         });
 
-        // Wait for transaction confirmation
         console.log('Waiting for transaction confirmation:', hash);
-        if (typeof hash !== 'string' || !(hash as string).startsWith('0x')) {
+        
+        if (!hash || typeof hash !== 'string' || !hash.startsWith('0x')) {
           throw new Error(`Invalid transaction hash: ${String(hash)}`);
         }
         const receipt = await waitForTransactionReceipt(config, {
@@ -166,7 +166,6 @@ export function useContract() {
     submitScoreWithSignature,
     isPending,
     error,
-    transactionHash: data,
     contractAddress: CONTRACT_ADDRESS,
     retryCount
   };

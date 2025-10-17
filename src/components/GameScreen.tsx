@@ -13,6 +13,7 @@ import dappsData from "@/data/dapps.json";
 import toast from "react-hot-toast";
 import { getFarcasterProfileByAddress } from "@/lib/neynarService";
 import { useLeaderboardWithProfiles } from "@/hooks/useLeaderboardWithProfiles";
+import { useNetworkSwitch } from "@/hooks/useNetworkSwitch";
 import { CheckCircle, Loader2 } from "lucide-react";
 import Image from "next/image";
 
@@ -76,6 +77,7 @@ export const GameScreen = () => {
     lastChange,
     recentMoves,
     leaderboard,
+    inputLocked,
   } = useGameState();
   const [showWinModal, setShowWinModal] = useState(false);
   const [showLoseModal, setShowLoseModal] = useState(false);
@@ -85,18 +87,32 @@ export const GameScreen = () => {
   const [playerBestScore, setPlayerBestScore] = useState<number | null>(null);
   const [isLoadingPlayerScore, setIsLoadingPlayerScore] = useState(false);
   const [isShaking, setIsShaking] = useState(false);
+  const shakeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [scoreSavedToBase, setScoreSavedToBase] = useState(false);
   const [isSubmittingScore, setIsSubmittingScore] = useState(false);
+  const [transactionHash, setTransactionHash] = useState<string | null>(null);
   // const [userProfile, setUserProfile] = useState<FarcasterProfile | null>(null);
   const { submitScoreWithSignature, isPending: isContractPending, retryCount: contractRetryCount } = useContract();
   const { connect, connectors, isPending } = useConnect();
   const { address } = useAccount();
+  const { ensureBaseNetwork, isOnBaseNetwork, isSwitching } = useNetworkSwitch();
   const touchStart = useRef<TouchPoint | null>(null);
+  const lastTouchTime = useRef<number>(0);
+  const lastKeyTime = useRef<number>(0);
   const previousBest = useRef(game.best);
 
   useEffect(() => {
     previousBest.current = game.best;
   }, [game.best]);
+
+  // Cleanup shake timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (shakeTimeoutRef.current) {
+        clearTimeout(shakeTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     setShowWinModal(game.status === "won");
@@ -163,21 +179,44 @@ export const GameScreen = () => {
 
   const handleMove = useCallback(
     (direction: MoveDirection) => {
+      // Don't process moves if already shaking or input is locked
+      if (isShaking || inputLocked) return;
+      
       const result = performAction(direction);
-      // If no movement occurred, add shake effect
+      
+      // Only shake if it's a real invalid move (board didn't change)
+      // Don't shake for input lock, game over, or other states
       if (!result.moved) {
+        // Check if the game is in a state where moves should be ignored
+        if (game.status === "lost" || game.status === "paused") {
+          return; // Don't shake for game over or paused states
+        }
+        
+        // Clear any existing shake timeout
+        if (shakeTimeoutRef.current) {
+          clearTimeout(shakeTimeoutRef.current);
+        }
+        
         setIsShaking(true);
-        setTimeout(() => {
+        shakeTimeoutRef.current = setTimeout(() => {
           setIsShaking(false);
-        }, 500);
+          shakeTimeoutRef.current = null;
+        }, 200);
       }
     },
-    [performAction]
+    [performAction, isShaking, game.status, inputLocked]
   );
 
   useEffect(() => {
     if (!hydrated) return;
     const onKeyDown = (event: KeyboardEvent) => {
+      const now = Date.now();
+      
+      // Prevent rapid key presses (debounce)
+      if (now - lastKeyTime.current < 100) {
+        return;
+      }
+      
       switch (event.key.toLowerCase()) {
         // Arrow keys
         case "arrowup":
@@ -185,6 +224,7 @@ export const GameScreen = () => {
         case "arrowleft":
         case "arrowright": {
           event.preventDefault();
+          lastKeyTime.current = now;
           handleMove(
             event.key.replace("Arrow", "").toLowerCase() as MoveDirection
           );
@@ -193,21 +233,25 @@ export const GameScreen = () => {
         // WASD keys
         case "w": {
           event.preventDefault();
+          lastKeyTime.current = now;
           handleMove("up");
           break;
         }
         case "s": {
           event.preventDefault();
+          lastKeyTime.current = now;
           handleMove("down");
           break;
         }
         case "a": {
           event.preventDefault();
+          lastKeyTime.current = now;
           handleMove("left");
           break;
         }
         case "d": {
           event.preventDefault();
+          lastKeyTime.current = now;
           handleMove("right");
           break;
         }
@@ -240,10 +284,19 @@ export const GameScreen = () => {
     (event: TouchEvent<HTMLDivElement>) => {
       event.preventDefault(); // Prevent scrolling on mobile
       if (!touchStart.current) return;
+      
+      const now = Date.now();
+      // Prevent rapid touches (debounce)
+      if (now - lastTouchTime.current < 100) {
+        touchStart.current = null;
+        return;
+      }
+      lastTouchTime.current = now;
+      
       const touch = event.changedTouches[0];
       const dx = touch.clientX - touchStart.current.x;
       const dy = touch.clientY - touchStart.current.y;
-      const duration = Date.now() - touchStart.current.time;
+      const duration = now - touchStart.current.time;
       touchStart.current = null;
 
       // Check if it's a valid swipe
@@ -322,6 +375,17 @@ export const GameScreen = () => {
       return;
     }
     
+    // Ensure we're on Base network
+    try {
+      console.log('Ensuring Base network before transaction...');
+      await ensureBaseNetwork();
+      console.log('Base network confirmed, proceeding with transaction...');
+    } catch (error) {
+      console.error('Network switch failed:', error);
+      toast.error('Please switch to Base network to save your score');
+      return;
+    }
+    
     // Validate game state before submission
     if (game.score < 0 || game.moves < 0 || game.timer.elapsedMs < 0) {
       toast.error('Invalid game state. Please start a new game.');
@@ -331,6 +395,7 @@ export const GameScreen = () => {
     // Reset saved state at the beginning of each attempt
     setScoreSavedToBase(false);
     setIsSubmittingScore(true);
+    setTransactionHash(null);
     
     try {
       // Step 1: Get backend signature
@@ -342,7 +407,6 @@ export const GameScreen = () => {
         playerAddress: address
       };
       
-      console.log('Submitting game data:', submissionData);
       
       const signatureResult = await getScoreSignature(submissionData);
       
@@ -372,6 +436,7 @@ export const GameScreen = () => {
       if (receipt && receipt.status === 'success') {
         // Mark score as saved to Base ONLY on success
         setScoreSavedToBase(true);
+        setTransactionHash(receipt.transactionHash);
         
         // Refresh player best score from contract after successful submission
         if (address) {
@@ -389,20 +454,19 @@ export const GameScreen = () => {
         }
         
         // Show success message with transaction details
-        toast.success(
-          `Score saved to Base! 🎉\nTransaction: ${receipt.transactionHash.slice(0, 10)}...`,
-          {
-            duration: 5000,
-            style: {
-              background: '#10B981',
-              color: '#fff',
-              borderRadius: '12px',
-              border: '1px solid #059669',
-              fontSize: '14px',
-              fontWeight: '500',
-            },
-          }
-        );
+        const txHash = receipt.transactionHash;
+        
+        toast.success('Score saved Onchain! 🎉', {
+          duration: 6000,
+          style: {
+            background: '#10B981',
+            color: '#fff',
+            borderRadius: '12px',
+            border: '1px solid #059669',
+            fontSize: '14px',
+            fontWeight: '500',
+          },
+        })
       } else {
         throw new Error('Transaction failed');
       }
@@ -461,7 +525,7 @@ export const GameScreen = () => {
       // Always reset loading state
       setIsSubmittingScore(false);
     }
-  }, [game.score, game.moves, game.timer.elapsedMs, game.board, address, submitScoreWithSignature]);
+  }, [game.score, game.moves, game.timer.elapsedMs, game.board, address, submitScoreWithSignature, ensureBaseNetwork]);
 
   const handleContinue = useCallback(() => {
     continueAfterWin();
@@ -729,25 +793,28 @@ export const GameScreen = () => {
                             {entry.rank || index + 1}
                           </span>
                           <div className="flex items-center gap-2">
-                            {entry.farcasterProfile?.pfpUrl && (
+                            {entry.farcasterProfile?.pfpUrl ? (
                               <Image
                                 src={entry.farcasterProfile.pfpUrl}
-                                alt={`${entry.farcasterProfile.displayName || entry.farcasterProfile.username} avatar`}
+                                alt="avatar"
                                 width={20}
                                 height={20}
                                 className="h-5 w-5 rounded-full object-cover"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.style.display = 'none';
-                                }}
+                                unoptimized
                               />
-                            )}
-                            <span>
+                            ) : null}
+                            <div 
+                              className="h-5 w-5 rounded-full bg-[#0A84FF] flex items-center justify-center text-white text-xs font-semibold"
+                              style={{ display: entry.farcasterProfile?.pfpUrl ? 'none' : 'flex' }}
+                            >
+                              {(entry.farcasterProfile?.displayName || entry.farcasterProfile?.username || entry.displayName || entry.username || '?').charAt(0).toUpperCase()}
+                            </div>
+                            <span className="text-xs">
                               {entry.farcasterProfile?.displayName ||
                                 entry.farcasterProfile?.username ||
                                 entry.displayName ||
                                 entry.username ||
-                                entry.address.slice(0, 10)}
+                                entry.address.slice(0, 4) + '...' + entry.address.slice(-4)}
                             </span>
                           </div>
                         </span>
@@ -793,14 +860,11 @@ export const GameScreen = () => {
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             {!scoreSavedToBase && (
               <button
+                key={`save-button-${address ? 'connected' : 'disconnected'}`}
                 type="button"
-                className={`w-full rounded-full px-4 py-2 text-sm font-semibold text-white transition cursor-pointer ${
-                  address 
-                    ? 'bg-[#0A84FF] hover:bg-[#0A76E5]' 
-                    : 'bg-gray-400 cursor-not-allowed'
-                } ${(isContractPending || isSubmittingScore) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                onClick={saveToBase}
-                disabled={!address || isContractPending || isSubmittingScore}
+                className="w-full rounded-full px-4 py-2 text-sm font-semibold text-white transition cursor-pointer bg-[#0A84FF] hover:bg-[#0A76E5] disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={address ? saveToBase : () => setShowWalletModal(true)}
+                disabled={address && (isContractPending || isSubmittingScore)}
               >
            {isSubmittingScore ? (
              <div className="flex items-center gap-2">
@@ -812,17 +876,31 @@ export const GameScreen = () => {
                <Loader2 className="h-4 w-4 animate-spin" />
                Confirming transaction...
              </div>
-           ) : address ? (
-             contractRetryCount > 0 ? `Retry Save to Base (${contractRetryCount}/3)` : 'Save to Base'
+            ) : address ? (
+             contractRetryCount > 0 ? 'Retry Save to Base' : 'Save to Base'
            ) : (
              'Connect Wallet to Save'
            )}
               </button>
             )}
             {scoreSavedToBase && (
-              <div className="w-full rounded-full px-4 py-2 text-sm font-semibold text-center bg-green-500 text-white flex items-center justify-center gap-2">
-                <CheckCircle className="h-4 w-4" />
-                Score Saved to Base!
+              <div className="w-full space-y-2">
+                <div className="rounded-full px-4 py-2 text-sm font-semibold text-center bg-green-500 text-white flex items-center justify-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  Score Saved Onchain!
+                </div>
+                {transactionHash && (
+                  <div className="text-center">
+                    <a
+                      href={`https://basescan.org/tx/${transactionHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-[#0A84FF] hover:text-[#0A76E5] underline"
+                    >
+                      View Transaction: {transactionHash.slice(0, 10)}...{transactionHash.slice(-6)}
+                    </a>
+                  </div>
+                )}
               </div>
             )}
             <button
@@ -852,14 +930,11 @@ export const GameScreen = () => {
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             {!scoreSavedToBase && (
               <button
+                key={`save-button-${address ? 'connected' : 'disconnected'}`}
                 type="button"
-                className={`w-full rounded-full px-4 py-2 text-sm font-semibold text-white transition cursor-pointer ${
-                  address 
-                    ? 'bg-[#0A84FF] hover:bg-[#0A76E5]' 
-                    : 'bg-gray-400 cursor-not-allowed'
-                } ${(isContractPending || isSubmittingScore) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                onClick={saveToBase}
-                disabled={!address || isContractPending || isSubmittingScore}
+                className="w-full rounded-full px-4 py-2 text-sm font-semibold text-white transition cursor-pointer bg-[#0A84FF] hover:bg-[#0A76E5] disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={address ? saveToBase : () => setShowWalletModal(true)}
+                disabled={address && (isContractPending || isSubmittingScore)}
               >
            {isSubmittingScore ? (
              <div className="flex items-center gap-2">
@@ -872,16 +947,30 @@ export const GameScreen = () => {
                Confirming transaction...
              </div>
            ) : address ? (
-             contractRetryCount > 0 ? `Retry Save to Base (${contractRetryCount}/3)` : 'Save to Base'
+             contractRetryCount > 0 ? 'Retry Save to Base' : 'Save to Base'
            ) : (
              'Connect Wallet to Save'
            )}
               </button>
             )}
             {scoreSavedToBase && (
-              <div className="w-full rounded-full px-4 py-2 text-sm font-semibold text-center bg-green-500 text-white flex items-center justify-center gap-2">
-                <CheckCircle className="h-4 w-4" />
-                Score Saved to Base!
+              <div className="w-full space-y-2">
+                <div className="rounded-full px-4 py-2 text-sm font-semibold text-center bg-green-500 text-white flex items-center justify-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  Score Saved Onchain!
+                </div>
+                {transactionHash && (
+                  <div className="text-center">
+                    <a
+                      href={`https://basescan.org/tx/${transactionHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-[#0A84FF] hover:text-[#0A76E5] underline"
+                    >
+                      View Transaction: {transactionHash.slice(0, 10)}...{transactionHash.slice(-6)}
+                    </a>
+                  </div>
+                )}
               </div>
             )}
             <button
@@ -956,19 +1045,22 @@ export const GameScreen = () => {
                         {entry.rank || index + 1}
                       </span>
                       <div className="flex items-center gap-2">
-                        {entry.farcasterProfile?.pfpUrl && (
+                        {entry.farcasterProfile?.pfpUrl ? (
                           <Image
                             src={entry.farcasterProfile.pfpUrl}
-                            alt={`${entry.farcasterProfile.displayName || entry.farcasterProfile.username} avatar`}
+                            alt="avatar"
                             width={24}
                             height={24}
                             className="h-6 w-6 rounded-full object-cover"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                            }}
+                            unoptimized
                           />
-                        )}
+                        ) : null}
+                        <div 
+                          className="h-6 w-6 rounded-full bg-[#0A84FF] flex items-center justify-center text-white text-xs font-semibold"
+                          style={{ display: entry.farcasterProfile?.pfpUrl ? 'none' : 'flex' }}
+                        >
+                          {(entry.farcasterProfile?.displayName || entry.farcasterProfile?.username || entry.displayName || entry.username || '?').charAt(0).toUpperCase()}
+                        </div>
                         <span className="font-medium">
                           {entry.farcasterProfile?.displayName ||
                             entry.farcasterProfile?.username ||
@@ -1024,13 +1116,7 @@ export const GameScreen = () => {
                       width={32}
                       height={32}
                       className="h-8 w-8 object-contain rounded-lg"
-                      onError={(e) => {
-                        // Fallback to emoji if PNG fails to load
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        const fallback = target.nextElementSibling as HTMLElement;
-                        if (fallback) fallback.style.display = 'inline';
-                      }}
+                      unoptimized
                     />
                     <span className="text-lg hidden">🎮</span>
                   </div>
@@ -1176,6 +1262,7 @@ const ConnectWalletButton = ({
 }) => {
   const { isConnected, address } = useAccount();
   const { disconnect } = useDisconnect();
+  const { isOnBaseNetwork, isSwitching } = useNetworkSwitch();
 
   const handleConnect = () => {
     // If only one connector (Farcaster), connect directly
@@ -1193,17 +1280,29 @@ const ConnectWalletButton = ({
 
   if (isConnected) {
     return (
-      <HoldButton
-        onHoldComplete={handleDisconnect}
-        holdDuration={800}
-        className="min-w-[80px] px-2 py-1 flex items-center justify-center"
-      >
-        <span className="text-[10px] font-medium text-center tracking-wide">
-          {address
-            ? `${address.slice(0, 4)}...${address.slice(-3)}`
-            : "Connected"}
-        </span>
-      </HoldButton>
+      <div className="flex items-center gap-2">
+        {!isOnBaseNetwork && !isSwitching && (
+          <span className="text-xs text-orange-600 font-medium">
+            Switch to Base
+          </span>
+        )}
+        {isSwitching && (
+          <span className="text-xs text-blue-600 font-medium">
+            Switching...
+          </span>
+        )}
+        <HoldButton
+          onHoldComplete={handleDisconnect}
+          holdDuration={800}
+          className="min-w-[80px] px-2 py-1 flex items-center justify-center"
+        >
+          <span className="text-[11px] font-medium text-center tracking-wide">
+            {address
+              ? `${address.slice(0, 4)}...${address.slice(-3)}`
+              : "Connected"}
+          </span>
+        </HoldButton>
+      </div>
     );
   }
 
@@ -1212,7 +1311,7 @@ const ConnectWalletButton = ({
       type="button"
       onClick={handleConnect}
       disabled={isPending}
-      className="relative  rounded-full border border-[#C5D5FF] bg-white px-3.5 py-1.5 text-sm font-medium text-[#1C2333] shadow-sm transition hover:bg-[#0A84FF]/5 hover:border-[#0A84FF] hover:text-[#0A84FF] disabled:cursor-not-allowed disabled:opacity-50 overflow-hidden "
+      className="relative rounded-full border border-[#C5D5FF] bg-white px-3.5 py-1.5 text-sm font-medium text-[#1C2333] shadow-sm transition hover:bg-[#0A84FF]/5 hover:border-[#0A84FF] hover:text-[#0A84FF] disabled:cursor-not-allowed disabled:opacity-50"
     >
       {isPending ? "Connecting..." : "Connect"}
     </button>

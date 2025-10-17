@@ -16,16 +16,12 @@ export function useLeaderboardWithProfiles(entries: LeaderboardEntry[]) {
       return;
     }
 
-    const enrichEntries = async () => {
+    const loadProfiles = async () => {
       setIsLoading(true);
       try {
-        // Get addresses from entries
         const addresses = entries.map(entry => entry.address);
-        
-        // Fetch Farcaster profiles for all addresses
         const profiles = await getFarcasterProfilesByAddresses(addresses);
         
-        // Create a map of address -> profile for quick lookup
         const profileMap = new Map<string, FarcasterProfile>();
         profiles.forEach(profile => {
           profile.verifications.forEach(verification => {
@@ -33,7 +29,6 @@ export function useLeaderboardWithProfiles(entries: LeaderboardEntry[]) {
           });
         });
         
-        // Enrich entries with profiles
         const enriched = entries.map(entry => ({
           ...entry,
           farcasterProfile: profileMap.get(entry.address.toLowerCase())
@@ -41,15 +36,13 @@ export function useLeaderboardWithProfiles(entries: LeaderboardEntry[]) {
         
         setEnrichedEntries(enriched);
       } catch (error) {
-        console.error('Error enriching leaderboard entries:', error);
-        // Fallback to original entries without profiles
         setEnrichedEntries(entries);
       } finally {
         setIsLoading(false);
       }
     };
 
-    enrichEntries();
+    loadProfiles();
   }, [entries]);
 
   return { enrichedEntries, isLoading };
