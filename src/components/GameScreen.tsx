@@ -1324,7 +1324,7 @@ const ConnectWalletButton = ({
 }) => {
   const { isConnected, address } = useAccount();
   const { disconnect } = useDisconnect();
-  const { isOnBaseNetwork, isSwitching } = useNetworkSwitch();
+  const { isSwitching } = useNetworkSwitch();
 
   const handleConnect = () => {
     // If only one connector (Farcaster), connect directly
