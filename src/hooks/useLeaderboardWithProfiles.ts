@@ -36,6 +36,7 @@ export function useLeaderboardWithProfiles(entries: LeaderboardEntry[]) {
         
         setEnrichedEntries(enriched);
       } catch (error) {
+        console.error("Error fetching Farcaster profiles:", error);
         setEnrichedEntries(entries);
       } finally {
         setIsLoading(false);

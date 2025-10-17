@@ -4,34 +4,41 @@
     "name": "DrawCoin",
     "description": "Hand-drawn art tokens on Base",
     "icon": "/icons/drawcoin-icon.png",
-    "url": "https://drawcoin-mini.vercel.app"
+    "url": "https://farcaster.xyz/miniapps/dc-pPO5wFd6-/drawcoin"
   },
   {
     "id": "base-counter",
     "name": "Base Counter",
     "description": "On-chain counter for Base.",
     "icon": "/icons/base-counter-icon.png",
-    "url": "https://counter-base.vercel.app"
+    "url": "https://farcaster.xyz/miniapps/7upwS7ktoVAn/base-counter"
   },
   {
     "id": "8bitminter",
     "name": "8BitCoiner",
     "description": "Retro tokens on Base",
     "icon": "/icons/8bitcoiner-icon.png",
-    "url": "https://8bitminter.vercel.app"
+    "url": "https://farcaster.xyz/miniapps/VJFTWn45l8cA/8bitcoiner"
   },
   {
     "id": "farsender",
     "name": "FarSender",
     "description": "Send tokens to multiple addresses easily.",
     "icon": "/icons/farsender-icon.png",
-    "url": "https://farsender.vercel.app"
+    "url": "https://farcaster.xyz/miniapps/x39YyDYuusxa/farsender"
   },
   {
     "id": "frevoke",
     "name": "fRevoke",
     "description": "Token Approval Revoker",
     "icon": "/icons/frevoke-icon.png",
-    "url": "https://frevoke.vercel.app"
+    "url": "https://farcaster.xyz/miniapps/aXupmg6n1SY4/frevoke"
+  },
+  {
+    "id": "monad-counter",
+    "name": "Monad Counter",
+    "description": "On-chain counter for Monad.",
+    "icon": "/icons/monad-counter-icon.png",
+    "url": "https://farcaster.xyz/miniapps/xBGkTrC41Qaj/monad-counter"
   }
 ]

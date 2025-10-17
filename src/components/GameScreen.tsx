@@ -9,7 +9,7 @@ import { useContract } from "@/hooks/useContract";
 import { HoldButton } from "./HoldButton";
 import { sdk } from "@farcaster/miniapp-sdk";
 import { useAccount, useConnect, useDisconnect, type Connector } from "wagmi";
-import dappsData from "@/data/dapps.json";
+import appsData from "@/data/apps.json";
 import toast from "react-hot-toast";
 import { getFarcasterProfileByAddress } from "@/lib/neynarService";
 import { useLeaderboardWithProfiles } from "@/hooks/useLeaderboardWithProfiles";
@@ -41,6 +41,11 @@ const formatElapsed = (elapsedMs: number) => {
     .padStart(2, "0");
   const seconds = (totalSeconds % 60).toString().padStart(2, "0");
   return `${minutes}:${seconds}`;
+};
+
+const truncateName = (name: string, maxLength: number = 15) => {
+  if (name.length <= maxLength) return name;
+  return name.slice(0, maxLength) + "...";
 };
 
 const directionArrows: Record<MoveDirection, string> = {
@@ -92,10 +97,14 @@ export const GameScreen = () => {
   const [isSubmittingScore, setIsSubmittingScore] = useState(false);
   const [transactionHash, setTransactionHash] = useState<string | null>(null);
   // const [userProfile, setUserProfile] = useState<FarcasterProfile | null>(null);
-  const { submitScoreWithSignature, isPending: isContractPending, retryCount: contractRetryCount } = useContract();
+  const {
+    submitScoreWithSignature,
+    isPending: isContractPending,
+    retryCount: contractRetryCount,
+  } = useContract();
   const { connect, connectors, isPending } = useConnect();
   const { address } = useAccount();
-  const { ensureBaseNetwork, isOnBaseNetwork, isSwitching } = useNetworkSwitch();
+  const { ensureBaseNetwork } = useNetworkSwitch();
   const touchStart = useRef<TouchPoint | null>(null);
   const lastTouchTime = useRef<number>(0);
   const lastKeyTime = useRef<number>(0);
@@ -127,6 +136,18 @@ export const GameScreen = () => {
         // This hides the Farcaster splash screen
         await sdk.actions.ready();
         console.log("Farcaster splash screen hidden - app ready");
+        
+        // Prompt user to add the mini app to Farcaster
+        try {
+          await sdk.actions.addMiniApp();
+          console.log("Mini app added to Farcaster successfully");
+        } catch (addError) {
+          if (addError instanceof Error && addError.name === 'RejectedByUser') {
+            console.log("User rejected adding mini app to Farcaster");
+          } else {
+            console.log("Could not add mini app to Farcaster:", addError);
+          }
+        }
       } catch (error) {
         console.error("Failed to initialize Farcaster SDK:", error);
       }
@@ -154,22 +175,22 @@ export const GameScreen = () => {
               setPlayerBestScore(0);
             }
           }
-          
+
           // Fetch Farcaster profile
           const profile = await getFarcasterProfileByAddress(address);
           if (profile) {
-            console.log('Farcaster profile loaded:', profile);
+            console.log("Farcaster profile loaded:", profile);
           } else {
-            console.log('No Farcaster profile found for address:', address);
+            console.log("No Farcaster profile found for address:", address);
           }
         } catch (error) {
-          console.error('Error fetching player data:', error);
+          console.error("Error fetching player data:", error);
           setPlayerBestScore(null);
         } finally {
           setIsLoadingPlayerScore(false);
         }
       };
-      
+
       fetchPlayerData();
     } else {
       setPlayerBestScore(null);
@@ -181,9 +202,9 @@ export const GameScreen = () => {
     (direction: MoveDirection) => {
       // Don't process moves if already shaking or input is locked
       if (isShaking || inputLocked) return;
-      
+
       const result = performAction(direction);
-      
+
       // Only shake if it's a real invalid move (board didn't change)
       // Don't shake for input lock, game over, or other states
       if (!result.moved) {
@@ -191,12 +212,12 @@ export const GameScreen = () => {
         if (game.status === "lost" || game.status === "paused") {
           return; // Don't shake for game over or paused states
         }
-        
+
         // Clear any existing shake timeout
         if (shakeTimeoutRef.current) {
           clearTimeout(shakeTimeoutRef.current);
         }
-        
+
         setIsShaking(true);
         shakeTimeoutRef.current = setTimeout(() => {
           setIsShaking(false);
@@ -211,12 +232,12 @@ export const GameScreen = () => {
     if (!hydrated) return;
     const onKeyDown = (event: KeyboardEvent) => {
       const now = Date.now();
-      
+
       // Prevent rapid key presses (debounce)
       if (now - lastKeyTime.current < 100) {
         return;
       }
-      
+
       switch (event.key.toLowerCase()) {
         // Arrow keys
         case "arrowup":
@@ -284,7 +305,7 @@ export const GameScreen = () => {
     (event: TouchEvent<HTMLDivElement>) => {
       event.preventDefault(); // Prevent scrolling on mobile
       if (!touchStart.current) return;
-      
+
       const now = Date.now();
       // Prevent rapid touches (debounce)
       if (now - lastTouchTime.current < 100) {
@@ -292,7 +313,7 @@ export const GameScreen = () => {
         return;
       }
       lastTouchTime.current = now;
-      
+
       const touch = event.changedTouches[0];
       const dx = touch.clientX - touchStart.current.x;
       const dy = touch.clientY - touchStart.current.y;
@@ -313,7 +334,6 @@ export const GameScreen = () => {
     },
     [handleMove]
   );
-
 
   const bestImproved = game.score > previousBest.current;
 
@@ -359,9 +379,15 @@ export const GameScreen = () => {
     () => leaderboard.entries.slice(0, 10),
     [leaderboard.entries]
   );
-  
-  const { enrichedEntries: enrichedLeaderboardPreview, isLoading: isEnrichingProfiles } = useLeaderboardWithProfiles(leaderboardPreview);
-  const { enrichedEntries: enrichedFullLeaderboard, isLoading: isEnrichingFullProfiles } = useLeaderboardWithProfiles(leaderboard.entries);
+
+  const {
+    enrichedEntries: enrichedLeaderboardPreview,
+    isLoading: isEnrichingProfiles,
+  } = useLeaderboardWithProfiles(leaderboardPreview);
+  const {
+    enrichedEntries: enrichedFullLeaderboard,
+    isLoading: isEnrichingFullProfiles,
+  } = useLeaderboardWithProfiles(leaderboard.entries);
   const formattedTimer = useMemo(
     () => formatElapsed(game.timer.elapsedMs),
     [game.timer.elapsedMs]
@@ -371,32 +397,32 @@ export const GameScreen = () => {
 
   const saveToBase = useCallback(async () => {
     if (!address) {
-      toast.error('Please connect your wallet first');
+      toast.error("Please connect your wallet first");
       return;
     }
-    
+
     // Ensure we're on Base network
     try {
-      console.log('Ensuring Base network before transaction...');
+      console.log("Ensuring Base network before transaction...");
       await ensureBaseNetwork();
-      console.log('Base network confirmed, proceeding with transaction...');
+      console.log("Base network confirmed, proceeding with transaction...");
     } catch (error) {
-      console.error('Network switch failed:', error);
-      toast.error('Please switch to Base network to save your score');
+      console.error("Network switch failed:", error);
+      toast.error("Please switch to Base network to save your score");
       return;
     }
-    
+
     // Validate game state before submission
     if (game.score < 0 || game.moves < 0 || game.timer.elapsedMs < 0) {
-      toast.error('Invalid game state. Please start a new game.');
+      toast.error("Invalid game state. Please start a new game.");
       return;
     }
-    
+
     // Reset saved state at the beginning of each attempt
     setScoreSavedToBase(false);
     setIsSubmittingScore(true);
     setTransactionHash(null);
-    
+
     try {
       // Step 1: Get backend signature
       const submissionData = {
@@ -404,21 +430,22 @@ export const GameScreen = () => {
         moves: game.moves,
         time: Math.floor(game.timer.elapsedMs / 1000),
         board: game.board,
-        playerAddress: address
+        playerAddress: address,
       };
-      
-      
+
       const signatureResult = await getScoreSignature(submissionData);
-      
+
       if (!signatureResult.success) {
-        const errorMessage = signatureResult.error || 'Failed to get signature';
-        const details = signatureResult.details ? ` Details: ${signatureResult.details.join(', ')}` : '';
+        const errorMessage = signatureResult.error || "Failed to get signature";
+        const details = signatureResult.details
+          ? ` Details: ${signatureResult.details.join(", ")}`
+          : "";
         throw new Error(`${errorMessage}${details}`);
       }
-      
+
       // Step 2: Submit to contract with user wallet
       const { signature } = signatureResult.data!;
-      
+
       const receipt = await submitScoreWithSignature(
         address,
         game.score,
@@ -428,16 +455,16 @@ export const GameScreen = () => {
         {
           v: signature.v,
           r: signature.r as `0x${string}`,
-          s: signature.s as `0x${string}`
+          s: signature.s as `0x${string}`,
         }
       );
-      
+
       // Only mark as saved if transaction was successful
-      if (receipt && receipt.status === 'success') {
+      if (receipt && receipt.status === "success") {
         // Mark score as saved to Base ONLY on success
         setScoreSavedToBase(true);
         setTransactionHash(receipt.transactionHash);
-        
+
         // Refresh player best score from contract after successful submission
         if (address) {
           try {
@@ -449,83 +476,97 @@ export const GameScreen = () => {
               }
             }
           } catch (error) {
-            console.error('Error refreshing player score:', error);
+            console.error("Error refreshing player score:", error);
           }
         }
-        
+
         // Show success message with transaction details
-        const txHash = receipt.transactionHash;
-        
-        toast.success('Score saved Onchain! 🎉', {
+
+        toast.success("Score saved Onchain! 🎉", {
           duration: 6000,
           style: {
-            background: '#10B981',
-            color: '#fff',
-            borderRadius: '12px',
-            border: '1px solid #059669',
-            fontSize: '14px',
-            fontWeight: '500',
+            background: "#10B981",
+            color: "#fff",
+            borderRadius: "12px",
+            border: "1px solid #059669",
+            fontSize: "14px",
+            fontWeight: "500",
           },
-        })
+        });
       } else {
-        throw new Error('Transaction failed');
+        throw new Error("Transaction failed");
       }
-      
     } catch (error) {
-      console.error('Error saving to Base:', error);
-      
+      console.error("Error saving to Base:", error);
+
       // Show specific error message
-      let errorMessage = 'Failed to save score to Base. Please try again.';
+      let errorMessage = "Failed to save score to Base. Please try again.";
       let isRetryable = false;
-      
+
       if (error instanceof Error) {
-        if (error.message.includes('User rejected')) {
-          errorMessage = 'Transaction was cancelled. Please try again.';
-        } else if (error.message.includes('insufficient funds')) {
-          errorMessage = 'Insufficient funds for transaction. Please check your wallet.';
-        } else if (error.message.includes('network') || error.message.includes('RPC')) {
-          errorMessage = 'Network error. Please check your connection and try again.';
+        if (error.message.includes("User rejected")) {
+          errorMessage = "Transaction was cancelled. Please try again.";
+        } else if (error.message.includes("insufficient funds")) {
+          errorMessage =
+            "Insufficient funds for transaction. Please check your wallet.";
+        } else if (
+          error.message.includes("network") ||
+          error.message.includes("RPC")
+        ) {
+          errorMessage =
+            "Network error. Please check your connection and try again.";
           isRetryable = true;
-        } else if (error.message.includes('Invalid game data')) {
-          errorMessage = 'Invalid game data. Please start a new game.';
-        } else if (error.message.includes('Transaction failed')) {
-          errorMessage = 'Transaction failed. Please try again.';
-        } else if (error.message.includes('timeout')) {
-          errorMessage = 'Transaction timeout. Please try again.';
+        } else if (error.message.includes("Invalid game data")) {
+          errorMessage = "Invalid game data. Please start a new game.";
+        } else if (error.message.includes("Transaction failed")) {
+          errorMessage = "Transaction failed. Please try again.";
+        } else if (error.message.includes("timeout")) {
+          errorMessage = "Transaction timeout. Please try again.";
           isRetryable = true;
-        } else if (error.message.includes('Invalid signature data')) {
-          errorMessage = 'Invalid signature. Please try again.';
+        } else if (error.message.includes("Invalid signature data")) {
+          errorMessage = "Invalid signature. Please try again.";
           isRetryable = true;
-        } else if (error.message.includes('after all retries')) {
-          errorMessage = 'Transaction failed after multiple attempts. Please try again';
+        } else if (error.message.includes("after all retries")) {
+          errorMessage =
+            "Transaction failed after multiple attempts. Please try again";
           isRetryable = true;
         } else {
           errorMessage = `Error: ${error.message}`;
         }
       }
-      
+
       toast.error(
-        `${errorMessage}${isRetryable ? '\nClick "Save to Base" to retry' : ''}`,
+        `${errorMessage}${
+          isRetryable ? '\nClick "Save to Base" to retry' : ""
+        }`,
         {
           duration: 6000,
           style: {
-            background: '#EF4444',
-            color: '#fff',
-            borderRadius: '12px',
-            border: '1px solid #DC2626',
-            fontSize: '14px',
-            fontWeight: '500',
+            background: "#EF4444",
+            color: "#fff",
+            borderRadius: "12px",
+            border: "1px solid #DC2626",
+            fontSize: "14px",
+            fontWeight: "500",
           },
         }
       );
-      
+
       // Ensure saved state is false on error so user can retry
       setScoreSavedToBase(false);
     } finally {
       // Always reset loading state
       setIsSubmittingScore(false);
     }
-  }, [game.score, game.moves, game.timer.elapsedMs, game.board, address, submitScoreWithSignature, ensureBaseNetwork]);
+  }, [
+    game.score,
+    game.moves,
+    game.timer.elapsedMs,
+    game.board,
+    address,
+    submitScoreWithSignature,
+    ensureBaseNetwork,
+  ]);
 
   const handleContinue = useCallback(() => {
     continueAfterWin();
@@ -597,10 +638,14 @@ export const GameScreen = () => {
           <div className="flex w-full items-center justify-between gap-3">
             <div>
               <h1 className="text-[20px] font-semibold tracking-tight text-[#1C2333] border-2 border-[#0A84FF] rounded-sm flex items-center gap-2">
-                <span className="text-sm md:text-base bg-[#0A84FF] text-white p-1.5">Base</span> 
-                <span className="text-sm md:text-base  text-[#0A84FF] p-1.5 rounded-lg">2048</span>
+                <span className="text-sm md:text-base bg-[#0A84FF] text-white p-1.5">
+                  Base
+                </span>
+                <span className="text-sm md:text-base  text-[#0A84FF] p-1.5 rounded-lg">
+                  2048
+                </span>
               </h1>
-            </div> 
+            </div>
             <ConnectWalletButton
               onOpenWalletModal={() => setShowWalletModal(true)}
               connectors={connectors}
@@ -615,7 +660,7 @@ export const GameScreen = () => {
             {/* Game Board */}
             <div
               className={`game-board relative aspect-square w-full rounded-[22px] border border-[#C5D5FF] bg-white p-2.5 shadow-md sm:rounded-[24px] sm:p-3.5 md:p-3 touch-none select-none ${
-                isShaking ? 'animate-shake' : ''
+                isShaking ? "animate-shake" : ""
               }`}
               onTouchStart={onTouchStart}
               onTouchEnd={onTouchEnd}
@@ -674,7 +719,6 @@ export const GameScreen = () => {
 
           <aside className="flex w-full flex-col gap-3 md:w-1/3">
             <div className="rounded-2xl border border-[#C5D5FF] bg-white p-3 shadow-md">
-          
               <div className="flex flex-wrap items-center gap-3">
                 <ScorePill
                   className="flex-1 min-w-[120px]"
@@ -697,7 +741,7 @@ export const GameScreen = () => {
                     value={formattedTimer}
                   />
                 </div>
-             
+
                 <div className="flex items-center justify-between">
                   <span>Total moves</span>
                   <span>{game.moves}</span>
@@ -803,18 +847,34 @@ export const GameScreen = () => {
                                 unoptimized
                               />
                             ) : null}
-                            <div 
+                            <div
                               className="h-5 w-5 rounded-full bg-[#0A84FF] flex items-center justify-center text-white text-xs font-semibold"
-                              style={{ display: entry.farcasterProfile?.pfpUrl ? 'none' : 'flex' }}
+                              style={{
+                                display: entry.farcasterProfile?.pfpUrl
+                                  ? "none"
+                                  : "flex",
+                              }}
                             >
-                              {(entry.farcasterProfile?.displayName || entry.farcasterProfile?.username || entry.displayName || entry.username || '?').charAt(0).toUpperCase()}
-                            </div>
-                            <span className="text-xs">
-                              {entry.farcasterProfile?.displayName ||
+                              {(
+                                entry.farcasterProfile?.displayName ||
                                 entry.farcasterProfile?.username ||
                                 entry.displayName ||
                                 entry.username ||
-                                entry.address.slice(0, 4) + '...' + entry.address.slice(-4)}
+                                "?"
+                              )
+                                .charAt(0)
+                                .toUpperCase()}
+                            </div>
+                            <span className="text-xs">
+                              {truncateName(
+                                entry.farcasterProfile?.displayName ||
+                                entry.farcasterProfile?.username ||
+                                entry.displayName ||
+                                entry.username ||
+                                entry.address.slice(0, 4) +
+                                  "..." +
+                                  entry.address.slice(-4)
+                              )}
                             </span>
                           </div>
                         </span>
@@ -860,27 +920,33 @@ export const GameScreen = () => {
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             {!scoreSavedToBase && (
               <button
-                key={`save-button-${address ? 'connected' : 'disconnected'}`}
+                key={`save-button-${address ? "connected" : "disconnected"}`}
                 type="button"
                 className="w-full rounded-full px-4 py-2 text-sm font-semibold text-white transition cursor-pointer bg-[#0A84FF] hover:bg-[#0A76E5] disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={address ? saveToBase : () => setShowWalletModal(true)}
                 disabled={address && (isContractPending || isSubmittingScore)}
               >
-           {isSubmittingScore ? (
-             <div className="flex items-center gap-2">
-               <Loader2 className="h-4 w-4 animate-spin" />
-               {contractRetryCount > 0 ? `Retrying... (${contractRetryCount}/3)` : 'Getting signature...'}
-             </div>
-           ) : isContractPending ? (
-             <div className="flex items-center gap-2">
-               <Loader2 className="h-4 w-4 animate-spin" />
-               Confirming transaction...
-             </div>
-            ) : address ? (
-             contractRetryCount > 0 ? 'Retry Save to Base' : 'Save to Base'
-           ) : (
-             'Connect Wallet to Save'
-           )}
+                {isSubmittingScore ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {contractRetryCount > 0
+                      ? `Retrying... (${contractRetryCount}/3)`
+                      : "Getting signature..."}
+                  </div>
+                ) : isContractPending ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Confirming transaction...
+                  </div>
+                ) : address ? (
+                  contractRetryCount > 0 ? (
+                    "Retry Save to Base"
+                  ) : (
+                    "Save to Base"
+                  )
+                ) : (
+                  "Connect Wallet to Save"
+                )}
               </button>
             )}
             {scoreSavedToBase && (
@@ -897,7 +963,8 @@ export const GameScreen = () => {
                       rel="noopener noreferrer"
                       className="text-xs text-[#0A84FF] hover:text-[#0A76E5] underline"
                     >
-                      View Transaction: {transactionHash.slice(0, 10)}...{transactionHash.slice(-6)}
+                      View Transaction: {transactionHash.slice(0, 10)}...
+                      {transactionHash.slice(-6)}
                     </a>
                   </div>
                 )}
@@ -930,27 +997,33 @@ export const GameScreen = () => {
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             {!scoreSavedToBase && (
               <button
-                key={`save-button-${address ? 'connected' : 'disconnected'}`}
+                key={`save-button-${address ? "connected" : "disconnected"}`}
                 type="button"
                 className="w-full rounded-full px-4 py-2 text-sm font-semibold text-white transition cursor-pointer bg-[#0A84FF] hover:bg-[#0A76E5] disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={address ? saveToBase : () => setShowWalletModal(true)}
                 disabled={address && (isContractPending || isSubmittingScore)}
               >
-           {isSubmittingScore ? (
-             <div className="flex items-center gap-2">
-               <Loader2 className="h-4 w-4 animate-spin" />
-               {contractRetryCount > 0 ? `Retrying... (${contractRetryCount}/3)` : 'Getting signature...'}
-             </div>
-           ) : isContractPending ? (
-             <div className="flex items-center gap-2">
-               <Loader2 className="h-4 w-4 animate-spin" />
-               Confirming transaction...
-             </div>
-           ) : address ? (
-             contractRetryCount > 0 ? 'Retry Save to Base' : 'Save to Base'
-           ) : (
-             'Connect Wallet to Save'
-           )}
+                {isSubmittingScore ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {contractRetryCount > 0
+                      ? `Retrying... (${contractRetryCount}/3)`
+                      : "Getting signature..."}
+                  </div>
+                ) : isContractPending ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Confirming transaction...
+                  </div>
+                ) : address ? (
+                  contractRetryCount > 0 ? (
+                    "Retry Save to Base"
+                  ) : (
+                    "Save to Base"
+                  )
+                ) : (
+                  "Connect Wallet to Save"
+                )}
               </button>
             )}
             {scoreSavedToBase && (
@@ -967,7 +1040,8 @@ export const GameScreen = () => {
                       rel="noopener noreferrer"
                       className="text-xs text-[#0A84FF] hover:text-[#0A76E5] underline"
                     >
-                      View Transaction: {transactionHash.slice(0, 10)}...{transactionHash.slice(-6)}
+                      View Transaction: {transactionHash.slice(0, 10)}...
+                      {transactionHash.slice(-6)}
                     </a>
                   </div>
                 )}
@@ -1055,18 +1129,32 @@ export const GameScreen = () => {
                             unoptimized
                           />
                         ) : null}
-                        <div 
+                        <div
                           className="h-6 w-6 rounded-full bg-[#0A84FF] flex items-center justify-center text-white text-xs font-semibold"
-                          style={{ display: entry.farcasterProfile?.pfpUrl ? 'none' : 'flex' }}
+                          style={{
+                            display: entry.farcasterProfile?.pfpUrl
+                              ? "none"
+                              : "flex",
+                          }}
                         >
-                          {(entry.farcasterProfile?.displayName || entry.farcasterProfile?.username || entry.displayName || entry.username || '?').charAt(0).toUpperCase()}
-                        </div>
-                        <span className="font-medium">
-                          {entry.farcasterProfile?.displayName ||
+                          {(
+                            entry.farcasterProfile?.displayName ||
                             entry.farcasterProfile?.username ||
                             entry.displayName ||
                             entry.username ||
-                            entry.address.slice(0, 10)}
+                            "?"
+                          )
+                            .charAt(0)
+                            .toUpperCase()}
+                        </div>
+                        <span className="font-medium">
+                          {truncateName(
+                            entry.farcasterProfile?.displayName ||
+                            entry.farcasterProfile?.username ||
+                            entry.displayName ||
+                            entry.username ||
+                            entry.address.slice(0, 10)
+                          )}
                         </span>
                       </div>
                     </span>
@@ -1093,49 +1181,49 @@ export const GameScreen = () => {
       ) : null}
 
       {showDAppsModal ? (
-        <Modal title="Other DApps" onClose={() => setShowDAppsModal(false)}>
-          <div className="space-y-3">
-            <p className="text-sm text-[#4C5A77]">
-              Discover other amazing applications on Base network.
+        <Modal title="Other Apps" onClose={() => setShowDAppsModal(false)}>
+          <div className="space-y-2 sm:space-y-3 max-h-[70vh] overflow-y-auto">
+            <p className="text-sm text-[#4C5A77] px-1">
+              Discover other amazing apps.
             </p>
-            <div className="grid gap-3">
-              {dappsData.map((dapp) => (
+            <div className="grid gap-2 sm:gap-3">
+              {appsData.map((app) => (
                 <button
-                  key={dapp.id}
+                  key={app.id}
                   type="button"
-                  className="group flex items-center gap-3 rounded-lg border border-[#C5D5FF] bg-white p-3 text-left transition hover:border-[#0A84FF] hover:bg-[#0A84FF]/5 cursor-pointer hover:shadow-md"
+                  className="group flex items-center gap-2 sm:gap-3 rounded-lg border border-[#C5D5FF] bg-white p-2 sm:p-3 text-left transition hover:border-[#0A84FF] hover:bg-[#0A84FF]/5 cursor-pointer hover:shadow-md"
                   onClick={() => {
-                    console.log(`Navigate to ${dapp.name}`);
-                    window.open(dapp.url, '_blank', 'noopener,noreferrer');
+                    console.log(`Navigate to ${app.name}`);
+                    window.open(app.url, "_blank", "noopener,noreferrer");
                   }}
                 >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0A84FF]/10">
-                    <Image 
-                      src={dapp.icon} 
-                      alt={`${dapp.name} icon`}
+                  <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-[#0A84FF]/10 flex-shrink-0">
+                    <Image
+                      src={app.icon}
+                      alt={`${app.name} icon`}
                       width={32}
                       height={32}
-                      className="h-8 w-8 object-contain rounded-lg"
+                      className="h-6 w-6 sm:h-8 sm:w-8 object-contain rounded-lg"
                       unoptimized
                     />
                     <span className="text-lg hidden">🎮</span>
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-[#1C2333]">{dapp.name}</h3>
-                    <p className="text-xs text-[#4C5A77]">{dapp.description}</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-[#1C2333] text-sm sm:text-base truncate">{app.name}</h3>
+                    <p className="text-xs text-[#4C5A77] line-clamp-2">{app.description}</p>
                   </div>
-                  <div className="flex items-center justify-center">
-                    <svg 
-                      className="h-4 w-4 text-[#4C5A77] transition-colors group-hover:text-[#0A84FF]" 
-                      fill="none" 
-                      stroke="currentColor" 
+                  <div className="flex items-center justify-center flex-shrink-0">
+                    <svg
+                      className="h-4 w-4 text-[#4C5A77] transition-colors group-hover:text-[#0A84FF]"
+                      fill="none"
+                      stroke="currentColor"
                       viewBox="0 0 24 24"
                     >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" 
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
                       />
                     </svg>
                   </div>
@@ -1372,7 +1460,7 @@ const Modal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-3xl border border-[#C5D5FF] bg-white p-3 shadow-xl">
+      <div className="w-full max-w-md rounded-3xl border border-[#C5D5FF] bg-white p-3 shadow-lg">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-[#1C2333]">{title}</h2>
           <button
