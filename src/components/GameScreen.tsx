@@ -66,11 +66,11 @@ const MIN_SWIPE_DISTANCE = 30; // Optimal for mobile responsiveness
 const MAX_SWIPE_DURATION = 300; // Better timing for quick swipes
 
 const tileTextSize = (value: number) => {
-  if (value >= 2048) return "text-[1.02rem] md:text-[1.32rem]";
-  if (value >= 1024) return "text-[1.12rem] md:text-[1.4rem]";
-  if (value >= 512) return "text-[1.2rem] md:text-[1.45rem]";
-  if (value >= 128) return "text-[1.3rem] md:text-[1.55rem]";
-  return "text-[1.38rem] md:text-[1.68rem]";
+  if (value >= 2048) return "text-[0.8rem] md:text-[1.32rem]";
+  if (value >= 1024) return "text-[0.85rem] md:text-[1.4rem]";
+  if (value >= 512) return "text-[0.92rem] md:text-[1.45rem]";
+  if (value >= 128) return "text-[1.0rem] md:text-[1.55rem]";
+  return "text-[1.08rem] md:text-[1.68rem]";
 };
 
 export const GameScreen = () => {
@@ -625,7 +625,225 @@ export const GameScreen = () => {
           </div>
         </header>
 
-        <main className="flex flex-col gap-3 md:flex-row">
+        {/* Mobile Layout */}
+        <div className="md:hidden flex flex-col gap-2">
+          {/* Timer + Moves - Top */}
+          <div className="rounded-xl border border-[#C5D5FF] bg-white p-3 shadow-md">
+            <div className="w-full rounded-xl bg-[#0A84FF]/5 border border-[#0A84FF]/15 px-4 py-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-[#4C5A77]">
+                  Time Elapsed
+                </span>
+                <span className="text-xl font-bold text-[#0A84FF] font-mono tracking-wider">
+                  {formattedTimer}
+                </span>
+              </div>
+              <div className="flex justify-center mt-2 pt-2 border-t border-[#0A84FF]/10">
+                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-50 text-sm text-[#4C5A77]">
+                  <span className="text-xs uppercase tracking-wide font-medium">Moves:</span>
+                  <span className="font-bold text-[#1C2333]">{game.moves}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Game Board - Mobile (Smaller Cards) */}
+          <div
+            className={`game-board relative aspect-square w-full rounded-[18px] border border-[#C5D5FF] bg-white p-1.5 shadow-md touch-none select-none ${
+              isShaking ? "animate-shake" : ""
+            }`}
+            onTouchStart={onTouchStart}
+            onTouchEnd={onTouchEnd}
+            style={{ touchAction: "none" }}
+          >
+            <div className="relative grid h-full w-full grid-cols-4 grid-rows-4 gap-1">
+              {game.board.map((row, rowIndex) =>
+                row.map((value, colIndex) => {
+                  const cellKey = `${rowIndex}-${colIndex}`;
+                  const isNew = spawnKey === cellKey;
+                  const isMerged = mergedKeys.has(cellKey);
+                  return (
+                    <Tile
+                      key={cellKey}
+                      value={value}
+                      isNew={isNew}
+                      isMerged={isMerged}
+                    />
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Minimal Score + Best - Bottom */}
+          <div className="rounded-xl border border-[#C5D5FF] bg-white p-3 shadow-md">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 flex flex-col items-center py-2 px-3 rounded-md bg-gradient-to-br from-[#F8FBFF] to-[#F0F7FF] border border-[#0A84FF]/10">
+                <span className="text-xs uppercase text-[#4C5A77] tracking-wide font-medium">
+                  Score
+                </span>
+                <span className={`text-lg font-bold tracking-tight ${bestImproved ? "text-[#0A84FF]" : "text-[#1C2333]"}`}>
+                  {displayScore.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex-1 flex flex-col items-center py-2 px-3 rounded-md bg-gradient-to-br from-[#F8FBFF] to-[#F0F7FF] border border-[#0A84FF]/10">
+                <span className="text-xs uppercase text-[#4C5A77] tracking-wide font-medium">
+                  Best
+                </span>
+                <span className="text-lg font-bold text-[#1C2333] tracking-tight">
+                  {isLoadingPlayerScore ? (
+                    <div className="flex items-center gap-1">
+                      <div className="h-3 w-3 animate-pulse bg-gray-300 rounded"></div>
+                      <div className="h-3 w-6 animate-pulse bg-gray-300 rounded"></div>
+                    </div>
+                  ) : (
+                    (playerBestScore !== null ? playerBestScore : 0).toLocaleString()
+                  )}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* New Game Button - Mobile */}
+          <div className="rounded-2xl border border-[#C5D5FF] bg-white p-3 shadow-md">
+            <div className="flex flex-col gap-3">
+              <div className="flex justify-center w-full">
+                <HoldButton
+                  onHoldComplete={() => startNewGame()}
+                  holdDuration={800}
+                  className="w-full"
+                >
+                  New Game
+                </HoldButton>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="flex-1 rounded-full border border-[#C5D5FF] px-3 py-1.5 text-xs font-semibold transition hover:border-[#0A84FF] hover:bg-[#0A84FF]/5 shadow-sm cursor-pointer"
+                  onClick={shareCurrentRun}
+                >
+                  Share
+                </button>
+                <button
+                  type="button"
+                  className="flex-1 rounded-full border border-[#C5D5FF] px-3 py-1.5 text-xs font-semibold transition hover:border-[#0A84FF] hover:bg-[#0A84FF]/5 shadow-sm cursor-pointer"
+                  onClick={() => setShowDAppsModal(true)}
+                >
+                  Other Apps
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Leaderboard - Mobile */}
+          <div className="rounded-2xl border border-[#C5D5FF] bg-white p-3 shadow-md">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-[#4C5A77]">
+              Top Scores
+            </h2>
+            {leaderboard.isLoading || isEnrichingProfiles ? (
+              <div className="mt-3 space-y-2">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between gap-3 animate-pulse"
+                  >
+                    <span className="flex items-center gap-2">
+                      <div className="h-6 w-6 rounded-full bg-gray-200"></div>
+                      <div className="flex items-center gap-2">
+                        <div className="h-5 w-5 rounded-full bg-gray-200"></div>
+                        <div className="h-4 w-20 bg-gray-200 rounded"></div>
+                      </div>
+                    </span>
+                    <div className="h-4 w-12 bg-gray-200 rounded"></div>
+                  </div>
+                ))}
+              </div>
+            ) : leaderboard.error ? (
+              <p className="mt-3 text-sm text-[#E54848]">
+                Leaderboard unavailable. {leaderboard.error}
+              </p>
+            ) : enrichedLeaderboardPreview.length ? (
+              <>
+                <ul className="mt-3 space-y-2 text-sm text-[#222222]">
+                  {enrichedLeaderboardPreview.slice(0, 5).map((entry, index) => (
+                    <li
+                      key={entry.address}
+                      className="flex items-center justify-between gap-3"
+                    >
+                      <span className="flex items-center gap-2 text-[#4C5A77]">
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#C5D5FF] text-xs font-semibold text-[#1C2333]">
+                          {entry.rank || index + 1}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          {entry.farcasterProfile?.pfpUrl ? (
+                            <Image
+                              src={entry.farcasterProfile.pfpUrl}
+                              alt="avatar"
+                              width={20}
+                              height={20}
+                              className="h-5 w-5 rounded-full object-cover"
+                              unoptimized
+                            />
+                          ) : null}
+                          <div
+                            className="h-5 w-5 rounded-full bg-[#0A84FF] flex items-center justify-center text-white text-xs font-semibold"
+                            style={{
+                              display: entry.farcasterProfile?.pfpUrl
+                                ? "none"
+                                : "flex",
+                            }}
+                          >
+                            {(
+                              entry.farcasterProfile?.displayName ||
+                              entry.farcasterProfile?.username ||
+                              entry.displayName ||
+                              entry.username ||
+                              "?"
+                            )
+                              .charAt(0)
+                              .toUpperCase()}
+                          </div>
+                          <span className="text-xs">
+                            {truncateName(
+                              entry.farcasterProfile?.displayName ||
+                                entry.farcasterProfile?.username ||
+                                entry.displayName ||
+                                entry.username ||
+                                entry.address.slice(0, 4) +
+                                  "..." +
+                                  entry.address.slice(-4)
+                            )}
+                          </span>
+                        </div>
+                      </span>
+                      <div className="text-right">
+                        <span className="font-semibold text-[#1C2333]">
+                          {entry.score.toLocaleString()}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                {leaderboard.entries.length > 5 ? (
+                  <button
+                    type="button"
+                    className="mt-4 w-full rounded-full border border-[#C5D5FF] shadow-sm px-3 py-1.5 text-xs font-semibold transition hover:border-[#0A84FF] hover:text-[#0A84FF]"
+                    onClick={() => setShowLeaderboardModal(true)}
+                  >
+                    View full leaderboard
+                  </button>
+                ) : null}
+              </>
+            ) : (
+              <p className="mt-3 text-sm text-[#4C5A77]">
+                Connect with Farcaster to see rich profiles.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Desktop Layout */}
+        <main className="hidden md:flex flex-col gap-3 md:flex-row">
           <section className="flex w-full flex-col gap-3 md:w-2/3">
             {/* Game Board */}
             <div
@@ -655,8 +873,8 @@ export const GameScreen = () => {
               </div>
             </div>
 
-            {/* New Game Button - Below game board (Desktop only) */}
-            <div className="hidden md:block rounded-2xl border border-[#C5D5FF] bg-white p-3 shadow-md">
+            {/* New Game Button - Desktop */}
+            <div className="rounded-2xl border border-[#C5D5FF] bg-white p-3 shadow-md">
               <div className="flex flex-col gap-3">
                 <div className="flex justify-center w-full">
                   <HoldButton
@@ -733,37 +951,6 @@ export const GameScreen = () => {
                       "—"
                     )}
                   </span>
-                </div>
-              </div>
-            </div>
-
-            {/* New Game Button - Mobile only (below Run Snapshot) */}
-            <div className="md:hidden rounded-2xl border border-[#C5D5FF] bg-white p-3 shadow-md">
-              <div className="flex flex-col gap-3">
-                <div className="flex justify-center w-full">
-                  <HoldButton
-                    onHoldComplete={() => startNewGame()}
-                    holdDuration={800}
-                    className="w-full"
-                  >
-                    New Game
-                  </HoldButton>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    className="flex-1 rounded-full border border-[#C5D5FF] px-3 py-1.5 text-xs font-semibold  transition hover:border-[#0A84FF] hover:bg-[#0A84FF]/5 shadow-sm cursor-pointer"
-                    onClick={shareCurrentRun}
-                  >
-                    Share
-                  </button>
-                  <button
-                    type="button"
-                    className="flex-1 rounded-full border border-[#C5D5FF] px-3 py-1.5 text-xs font-semibold  transition hover:border-[#0A84FF] hover:bg-[#0A84FF]/5 shadow-sm cursor-pointer"
-                    onClick={() => setShowDAppsModal(true)}
-                  >
-                    Other Apps
-                  </button>
                 </div>
               </div>
             </div>
@@ -1267,25 +1454,25 @@ const ScorePill = ({
   isLoading = false,
 }: ScorePillProps) => (
   <div
-    className={`flex min-w-[110px] flex-col items-center rounded-[16px] border border-[#C5D5FF] bg-white px-4 py-2 text-[#1C2333] shadow-sm transition-transform duration-300 ${
+    className={`flex min-w-[120px] md:min-w-[120px] flex-col items-center rounded-[16px] md:rounded-[16px] border bg-white px-4 py-3 md:px-4 md:py-2 text-[#1C2333] transition-all duration-300 ${
       highlight
-        ? "scale-[1.03] border-[#0A84FF] shadow-[0_12px_24px_rgba(10,132,255,0.18)]"
-        : ""
+        ? "scale-[1.05] border-[#0A84FF] shadow-[0_16px_32px_rgba(10,132,255,0.25)] bg-gradient-to-br from-[#0A84FF]/5 to-[#0A84FF]/10"
+        : "border-[#C5D5FF] shadow-sm hover:shadow-md"
     } ${className}`}
     aria-live="polite"
   >
-    <span className="text-xs uppercase text-[#4C5A77] tracking-wide">
+    <span className="text-xs md:text-xs uppercase text-[#4C5A77] tracking-wider font-medium">
       {label}
     </span>
     <span
-      className={`text-lg font-semibold transition-colors tracking-tight ${
-        highlight ? "text-[#0A84FF]" : ""
+      className={`text-xl md:text-lg font-bold transition-colors tracking-tight ${
+        highlight ? "text-[#0A84FF]" : "text-[#1C2333]"
       }`}
     >
       {isLoading ? (
         <div className="flex items-center gap-1">
-          <div className="h-4 w-4 animate-pulse bg-gray-300 rounded"></div>
-          <div className="h-4 w-8 animate-pulse bg-gray-300 rounded"></div>
+          <div className="h-4 w-4 md:h-4 md:w-4 animate-pulse bg-gray-300 rounded"></div>
+          <div className="h-4 w-8 md:h-4 md:w-8 animate-pulse bg-gray-300 rounded"></div>
         </div>
       ) : (
         value.toLocaleString()
@@ -1302,12 +1489,12 @@ type InfoChipProps = {
 
 const InfoChip = ({ label, value, className = "" }: InfoChipProps) => (
   <div
-    className={`inline-flex min-w-[96px] flex-col items-center justify-center rounded-[14px] border border-[#C5D5FF] bg-white px-3 py-2 text-[#334064] shadow-sm ${className}`}
+    className={`inline-flex min-w-[88px] md:min-w-[96px] flex-col items-center justify-center rounded-[12px] md:rounded-[14px] border border-[#C5D5FF] bg-white px-2.5 py-1.5 md:px-3 md:py-2 text-[#334064] shadow-sm ${className}`}
   >
-    <span className="text-[11px] uppercase tracking-[0.16em] text-[#7281A7]">
+    <span className="text-[10px] md:text-[11px] uppercase tracking-[0.16em] text-[#7281A7]">
       {label}
     </span>
-    <span className="text-sm font-semibold text-[#1C2333]">{value}</span>
+    <span className="text-sm md:text-sm font-semibold text-[#1C2333]">{value}</span>
   </div>
 );
 
@@ -1383,14 +1570,14 @@ type TileProps = {
 
 const Tile = ({ value, isNew, isMerged }: TileProps) => {
   const baseClass =
-    "flex h-full w-full items-center justify-center rounded-[18px] border font-semibold transition-[background-color,border-color,color,transform] duration-320 ease-[cubic-bezier(0.2,0.8,0.2,1)] will-change-transform tracking-tight";
+    "flex h-full w-full items-center justify-center rounded-[12px] md:rounded-[18px] border font-semibold transition-[background-color,border-color,color,transform] duration-320 ease-[cubic-bezier(0.2,0.8,0.2,1)] will-change-transform tracking-tight";
   const palette =
     TILE_COLORS[value] ?? "bg-[#3F7BFF] border-[#346EFA] text-white";
   const shadowClass = "shadow-sm";
   const ringClass = isNew
-    ? "outline outline-2 outline-[#0A84FF]/40 outline-offset-[-3px]"
+    ? "outline outline-1.5 outline-[#0A84FF]/40 outline-offset-[-1px] md:outline-offset-[-3px]"
     : isMerged
-    ? "outline outline-2 outline-[#0A84FF]/35 outline-offset-[-3px]"
+    ? "outline outline-1.5 outline-[#0A84FF]/35 outline-offset-[-1px] md:outline-offset-[-3px]"
     : "";
   const animationClass = isNew
     ? "animate-[tile-pop_220ms_cubic-bezier(0.2,0.75,0.2,1)_both]"
