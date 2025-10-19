@@ -6,7 +6,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       data: {
-        feeAmount: '0.000013', // 0.000013 ETH
+        feeAmount: '0', // 0 ETH
         currency: 'ETH'
       }
     });
