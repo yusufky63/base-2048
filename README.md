@@ -1,39 +1,60 @@
 # Base 2048 Web Client
 
-Light-themed 2048 experience that follows the Base product/design spec. Built with Next.js (App Router), TypeScript, and Tailwind CSS v4 utilities.
+Base 2048 is a Base-themed 2048 game client with mobile-first gameplay, score tracking, local persistence, timer controls, undo support, and hooks for Farcaster/on-chain extensions.
 
 ## Feature Highlights
 
-- 4×4 2048 board with merge/compress logic, input lock, keyboard shortcuts, and swipe gestures.
-- Score, best score with local persistence, timer (auto/pause/resume), moves counter, and undo history (single-step stack).
-- Win/lose modals with `Save to Base` and continue/try-again flows; settings panel for timer toggle and progress reset.
-- Placeholder on-chain integration hooks that stub `submitScore` / `fetchLeaderboard` calls and surface Farcaster-ready leaderboard enrichment.
-- Compact responsive layout, soft shadows, and neutral tile palette aligned with the light theme spec.
+- Classic 4x4 2048 gameplay adapted for a compact web/mobile UI.
+- Score, best score, timer, restart, and undo interactions.
+- Base-branded visual direction and Farcaster Mini App compatibility.
+- Environment hooks for contract address, Base RPC, Neynar, and backend signing flows.
+- OnchainKit, Wagmi, Viem, Ethers, and Neynar dependencies ready for wallet/social features.
 
 ## Quick Start
 
 ```bash
 npm install
+cp env.example .env.local
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000) to play.
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the development server. |
+| `npm run build` | Build for production. |
+| `npm start` | Run the production server. |
+| `npm run lint` | Run lint checks. |
 
-## Scripts
+## Environment
 
-- `npm run dev` – start the development server.
-- `npm run build` – create a production build.
-- `npm run start` – run the built app.
-- `npm run lint` – lint the codebase.
+Use `env.example` for local setup. Keep backend/private key values server-only.
+
+- `NEXT_PUBLIC_CONTRACT_ADDRESS`
+- `NEXT_PUBLIC_BASE_RPC_URL`
+- `NEYNAR_API_KEY`
+- `BACKEND_PRIVATE_KEY`
+- `BASE_RPC_URL`
 
 ## Key Paths
 
-- `src/lib/gameUtils.ts` – board creation, move resolution, spawn, and status helpers.
-- `src/hooks/useGameState.ts` – core state machine, timer management, persistence, leaderboard bridge.
-- `src/components/GameScreen.tsx` – UI composition (header, board, controls, modals, leaderboard).
+- `src/` - game state, UI, Farcaster/Web3 integration, and app routes.
+- `public/` - static assets and metadata.
+- `env.example` - local configuration template.
+
+| Layer | Tools |
+| --- | --- |
+| Frontend | Next.js, React, TypeScript, Lucide React, React Hot Toast |
+| Base/Web3 | OnchainKit, Wagmi, Viem, Ethers |
+| Farcaster | Farcaster frame/mini app SDK, Neynar SDK |
+| Validation/Data | Axios, Joi, React Query |
 
 ## Next Steps
 
-1. Replace `lib/leaderboardClient.ts` with real `viem`/`ethers` contract calls to the `BaseLeaderboard` contract.
-2. Hook in wallet connection and Farcaster/Neynar identity overlays for leaderboard rows.
-3. Add automated tests (`vitest`/`playwright`) for merge logic and happy-path E2E.
+- Connect score submission to the configured contract flow.
+- Expand leaderboard persistence and anti-spam checks.
+- Improve Farcaster share cards and mobile polish.
+
+## Status
+
+- Repository: https://github.com/yusufky63/base-2048
+- Live app: https://base-2048.vercel.app
