@@ -1,87 +1,60 @@
-# Base 2048
+# Base 2048 Web Client
 
-Base 2048 is a Base-themed 2048 game with score tracking, local persistence, timer, undo, and hooks for leaderboard/on-chain score experiments.
+Base 2048 is a Base-themed 2048 game client with mobile-first gameplay, score tracking, local persistence, timer controls, undo support, and hooks for Farcaster/on-chain extensions.
 
-## Snapshot
+## Feature Highlights
 
-- **Category:** Base-themed Mini App game
-- **Status:** Public repository
-- **Live:** https://base-2048.vercel.app
-- **Repository:** https://github.com/yusufky63/base-2048
-- **Portfolio:** https://codexsha.dev
+- Classic 4x4 2048 gameplay adapted for a compact web/mobile UI.
+- Score, best score, timer, restart, and undo interactions.
+- Base-branded visual direction and Farcaster Mini App compatibility.
+- Environment hooks for contract address, Base RPC, Neynar, and backend signing flows.
+- OnchainKit, Wagmi, Viem, Ethers, and Neynar dependencies ready for wallet/social features.
 
-## Product Scope
+## Quick Start
 
-Base 2048 is documented here as a product repository, not just a code dump. The goal of this README is to make the product purpose, runtime surface, and development path clear for future review and maintenance.
-
-## Core Capabilities
-
-- 4x4 2048 gameplay
-- Score, timer, undo, and local best score
-- Base-themed visual system
-- Farcaster sharing and mini app metadata
-- Leaderboard and on-chain hook preparation
-
-## Existing README Coverage Preserved
-
-This refresh keeps the important project-specific areas from the previous documentation:
-
-- Feature Highlights
-- Quick Start
-- Scripts
-- Key Paths
-- Next Steps
-
-## Tech Stack
-
-- Next.js
-- TypeScript
-- OnchainKit
-- Farcaster SDK
-- Neynar
-- Ethers
-- Wagmi
-- Viem
-- Axios
-
-## Repository Map
-
-| Path | Purpose |
-| --- | --- |
-| src/app/ | App routes and page shell |
-| src/components/ | Game board and UI components |
-| src/lib/ | Game/web3 helpers |
-| public/ | Game icons and preview assets |
-
-## Local Development
+```bash
+npm install
+cp env.example .env.local
+npm run dev
+```
 
 | Command | Purpose |
 | --- | --- |
-| npm run dev | Run local dev server |
-| npm run build | Build production app |
-| npm run start | Start production server |
-| npm run lint | Run lint checks |
+| `npm run dev` | Start the development server. |
+| `npm run build` | Build for production. |
+| `npm start` | Run the production server. |
+| `npm run lint` | Run lint checks. |
 
-## Environment Notes
+## Environment
 
-Use local environment files for secrets and deployment-specific values. Do not commit real keys.
+Use `env.example` for local setup. Keep backend/private key values server-only.
 
-- NEXT_PUBLIC_CONTRACT_ADDRESS
-- NEXT_PUBLIC_BASE_RPC_URL
-- NEYNAR_API_KEY
-- BACKEND_PRIVATE_KEY
-- BASE_RPC_URL
+- `NEXT_PUBLIC_CONTRACT_ADDRESS`
+- `NEXT_PUBLIC_BASE_RPC_URL`
+- `NEYNAR_API_KEY`
+- `BACKEND_PRIVATE_KEY`
+- `BASE_RPC_URL`
 
-## Operational Notes
+## Key Paths
 
-- Keep this README aligned with the live product and portfolio copy.
-- Prefer small, documented changes over large undocumented rewrites.
-- The existing README was short; this keeps its quick-start focus while adding product and environment context.
+- `src/` - game state, UI, Farcaster/Web3 integration, and app routes.
+- `public/` - static assets and metadata.
+- `env.example` - local configuration template.
 
-## Maintainer
+| Layer | Tools |
+| --- | --- |
+| Frontend | Next.js, React, TypeScript, Lucide React, React Hot Toast |
+| Base/Web3 | OnchainKit, Wagmi, Viem, Ethers |
+| Farcaster | Farcaster frame/mini app SDK, Neynar SDK |
+| Validation/Data | Axios, Joi, React Query |
 
-Built by Yusuf / Codexsha.
+## Next Steps
 
-- GitHub: https://github.com/yusufky63
-- X: https://x.com/codexsha
-- Telegram: https://t.me/codexsha
+- Connect score submission to the configured contract flow.
+- Expand leaderboard persistence and anti-spam checks.
+- Improve Farcaster share cards and mobile polish.
+
+## Status
+
+- Repository: https://github.com/yusufky63/base-2048
+- Live app: https://base-2048.vercel.app
